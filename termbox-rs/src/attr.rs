@@ -166,7 +166,11 @@ impl Attribute {
 }
 
 const fn min_u8(a: u8, b: u8) -> u8 {
-    if a < b { a } else { b }
+    if a < b {
+        a
+    } else {
+        b
+    }
 }
 
 /// The nearest xterm-256 palette entry to an RGB triple.
@@ -209,7 +213,11 @@ pub const fn rgb_to_attribute(r: u8, g: u8, b: u8) -> Attribute {
         0
     } else {
         let s = (avg - 8 + 5) / 10;
-        if s > 23 { 23 } else { s }
+        if s > 23 {
+            23
+        } else {
+            s
+        }
     };
     let grey = (8 + shade * 10) as u8;
     let grey_d = diff(r, grey) + diff(g, grey) + diff(b, grey);
@@ -326,7 +334,9 @@ mod tests {
         assert_eq!(a.color(), 2);
         assert_eq!(a.style(), 0x0300);
         assert!(a.contains(Attribute::UNDERLINE));
-        assert!(!a.without(Attribute::UNDERLINE).contains(Attribute::UNDERLINE));
+        assert!(!a
+            .without(Attribute::UNDERLINE)
+            .contains(Attribute::UNDERLINE));
     }
 
     #[test]
@@ -344,7 +354,13 @@ mod tests {
     fn rustbox_colours_round_trip() {
         assert_eq!(Attribute::from(rustbox::Color::Cyan), Attribute::CYAN);
         assert_eq!(Attribute::from(rustbox::Color::Default), Attribute::DEFAULT);
-        assert_eq!(rustbox::Color::from(Attribute::DEFAULT), rustbox::Color::Default);
-        assert_eq!(rustbox::Color::from(Attribute::byte(42)), rustbox::Color::Byte(42));
+        assert_eq!(
+            rustbox::Color::from(Attribute::DEFAULT),
+            rustbox::Color::Default
+        );
+        assert_eq!(
+            rustbox::Color::from(Attribute::byte(42)),
+            rustbox::Color::Byte(42)
+        );
     }
 }
