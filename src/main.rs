@@ -1,4 +1,9 @@
-use std::process;
+use std::{
+    env,
+    fs::File,
+    io::{BufRead, BufReader},
+    process,
+};
 use termbox_rs::{Attribute, Event, Key, Termbox};
 use unicode_width::UnicodeWidthChar;
 
@@ -12,16 +17,18 @@ struct State {
     offset_x: usize,
     offset_y: usize,
     text_buf: Vec<Vec<char>>,
+    source_file: String,
 }
 
 impl State {
-    fn new(rows: usize, cols: usize) -> Self {
+    fn new() -> Self {
         Self {
-            rows,
-            cols,
+            rows: 0,
+            cols: 0,
             offset_x: 0,
             offset_y: 0,
             text_buf: vec![],
+            source_file: String::new(),
         }
     }
 }
@@ -32,12 +39,21 @@ fn run_editor() {
         process::exit(1);
     });
 
-    loop {
-        let (width, height) = tb.size();
+    let mut state = State::new();
 
-        let mut state = State::new(height, width);
-        state.text_buf.push(vec!['h', 'e', 'l', 'l', 'o']);
-        state.text_buf.push(vec!['w', 'o', 'r', 'l', 'd']);
+    state.source_file = match env::args().nth(1) {
+        Some(path) => {
+            read_file(&mut state, &path);
+            path
+        }
+        None => {
+            state.text_buf.push(vec![]);
+            String::from("out.txt")
+        }
+    };
+
+    loop {
+        (state.rows, state.cols) = tb.size();
         state.rows -= 1;
 
         if state.cols < 80 {
@@ -57,6 +73,36 @@ fn run_editor() {
             } => break,
             _ => {}
         }
+    }
+}
+
+fn read_file(s: &mut State, path: &str) {
+    // Rust automatically closes File when it goes out of scope,
+    // handling file descriptor cleanup without needing an explicit defer block.
+    let Ok(file) = File::open(path) else {
+        s.source_file = path.to_string();
+        s.text_buf.push(vec![]);
+        return;
+    };
+
+    let reader = BufReader::new(file);
+    let mut line_num = 0;
+
+    for line in reader.lines() {
+        match line {
+            Ok(content) => {
+                s.text_buf.push(content.chars().collect());
+                line_num += 1;
+            }
+            Err(err) => {
+                eprintln!("Failed to read the file '{path}', err: {err}");
+                return;
+            }
+        }
+    }
+
+    if line_num == 0 {
+        s.text_buf.push(vec![]);
     }
 }
 
