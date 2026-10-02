@@ -6,3 +6,10 @@ edition = "2024"
 [dependencies]
 termbox-rs = { path = "./termbox-rs" }
 unicode-width = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
