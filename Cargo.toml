@@ -7,6 +7,9 @@ edition = "2024"
 termbox-rs = { path = "./termbox-rs" }
 unicode-width = "0.2"
 
+[patch.crates-io]
+termbox-sys = { path = "termbox-rs/vendor/termbox-sys" }
+
 [profile.release]
 opt-level = 3
 lto = true

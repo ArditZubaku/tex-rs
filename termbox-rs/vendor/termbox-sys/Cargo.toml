@@ -1,0 +1,15 @@
+[package]
+name = "termbox-sys"
+version = "0.2.12"
+edition = "2021"
+build = "build.rs"
+links = "termbox"
+description = "Vendored termbox-sys: compiles termbox C sources directly via cc, no waf/python."
+license = "MIT"
+
+[lib]
+name = "termbox_sys"
+path = "lib.rs"
+
+[build-dependencies]
+cc = "1"
