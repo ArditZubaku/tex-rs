@@ -40,8 +40,10 @@ fn run_editor() {
 
         e.tb.clear(Attribute::DEFAULT, Attribute::DEFAULT);
 
+        e.scroll_text_buffer();
         e.display_text_buffer();
         e.display_status_bar();
+        e.sync_cursor();
 
         e.tb.flush();
 
@@ -222,6 +224,24 @@ impl Editor {
         self.print_message(0, self.rows, Attribute::BLACK, Attribute::WHITE, &txt);
     }
 
+    fn scroll_text_buffer(&mut self) {
+        if self.current_row < self.offset_row {
+            self.offset_row = self.current_row
+        }
+
+        if self.current_col < self.offset_col {
+            self.offset_col = self.current_col
+        }
+
+        if self.current_row >= self.offset_row + self.rows {
+            self.offset_row = self.current_row - self.rows + 1
+        }
+
+        if self.current_col >= self.offset_col + self.cols {
+            self.offset_col = self.current_col - self.cols + 1
+        }
+    }
+
     fn print_message(
         &mut self,
         mut col: usize,
@@ -234,5 +254,12 @@ impl Editor {
             self.tb.set_cell(col, row, ch, fg, bg);
             col += ch.width().unwrap_or(0);
         }
+    }
+
+    fn sync_cursor(&self) {
+        self.tb.set_cursor(
+            (self.current_col - self.offset_col) as i32,
+            (self.current_row - self.offset_row) as i32,
+        );
     }
 }
