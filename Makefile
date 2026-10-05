@@ -1,5 +1,5 @@
 BINARY := ./tex-bin
-FILE ?= ../../golang/tex/main.go
+FILE ?= ./src/main.rs
 
 .PHONY: all run build clean
 

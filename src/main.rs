@@ -1,7 +1,7 @@
 mod editor;
 
 use std::{env, process};
-use termbox_rs::{Attribute, Event, Key, Termbox};
+use termbox_rs::{Attribute, Key, Termbox};
 
 use crate::editor::Editor;
 
@@ -40,12 +40,13 @@ fn main() {
 
         e.tb.flush();
 
-        match e.tb.poll_event().expect("Failed to poll event") {
-            Event::Key {
-                key: Key::Esc | Key::Char('q'),
-                ..
-            } => break,
-            _ => {}
+        let key = e.get_key();
+
+        if let Key::Esc | Key::Char('q') = key {
+            e.tb.close();
+            process::exit(0);
+        } else {
+            e.process_key_press(key);
         }
     }
 }

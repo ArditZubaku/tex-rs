@@ -4,7 +4,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use termbox_rs::{Attribute, Termbox};
+use termbox_rs::{Attribute, Event, Key, Termbox};
 use unicode_width::UnicodeWidthChar;
 
 pub struct Editor {
@@ -142,10 +142,7 @@ impl Editor {
 
         // truncate the file name
         let filename_len = min(self.source_file.len(), 20);
-        let mut state = String::from("saved");
-        if self.modified {
-            state = String::from("modified");
-        }
+        let state = if self.modified { "modified" } else { "saved" };
 
         s.file = format!(
             "{} - {} lines {}",
@@ -197,6 +194,104 @@ impl Editor {
             (self.current_col - self.offset_col) as i32,
             (self.current_row - self.offset_row) as i32,
         );
+    }
+
+    pub fn get_key(&self) -> Key {
+        let res = self.tb.poll_event().expect("Failed to poll event");
+
+        if let Event::Key { key, .. } = res {
+            key
+        } else {
+            // TODO: Will think of something better in such a case
+            panic!()
+        }
+    }
+
+    pub fn process_key_press(&mut self, key: Key) {
+        if key.ch() != Some('\0') {
+            // char is not null
+            if let Some(ch) = key.ch() {
+                match ch {
+                    'h' => self.left(),
+                    'j' => self.down(),
+                    'k' => self.up(),
+                    'l' => self.right(),
+                    // idk how many lines VIM goes up but this should be good
+                    'u' => self.current_row = self.current_row.saturating_sub(15),
+                    'd' => {
+                        if self.current_row < self.text_buf.len() - 1 {
+                            self.current_row += 15;
+                        }
+                    }
+                    _ => {
+                        println!("Unhandled character: {:?}", key);
+                    }
+                }
+            } else {
+                eprintln!("No character received?")
+            }
+        } else {
+            match key {
+                Key::ArrowUp => {
+                    self.up();
+                }
+                Key::ArrowDown => {
+                    self.down();
+                }
+                Key::ArrowLeft => {
+                    self.left();
+                }
+                Key::ArrowRight => {
+                    self.right();
+                }
+                _ => {
+                    println!("You are not handling this key - {:?}", key)
+                }
+            }
+        }
+    }
+
+    fn clamp_cursor(&mut self) {
+        if let Some(line) = self.text_buf.get(self.current_row) {
+            self.current_col = min(self.current_col, line.len());
+        }
+    }
+
+    fn up(&mut self) {
+        if self.current_row != 0 {
+            self.current_row -= 1;
+            self.clamp_cursor();
+        }
+    }
+
+    fn down(&mut self) {
+        if self.current_row < self.text_buf.len() - 1 {
+            self.current_row += 1;
+            self.clamp_cursor();
+        }
+    }
+
+    fn left(&mut self) {
+        if self.current_col != 0 {
+            self.current_col -= 1;
+        } else if self.current_row > 0 {
+            // if we are not on the first line
+            // move to the end of the previous line
+            self.current_row -= 1;
+            self.current_col = self.text_buf[self.current_row].len();
+        }
+    }
+
+    fn right(&mut self) {
+        let line_len = self.text_buf[self.current_row].len();
+        if self.current_col < line_len {
+            self.current_col += 1;
+        } else if self.current_row < self.text_buf.len() - 1 {
+            // if we are not on the last line
+            // move to the first column of a the new line
+            self.current_col = 0;
+            self.current_row += 1;
+        }
     }
 
     fn print_message(
