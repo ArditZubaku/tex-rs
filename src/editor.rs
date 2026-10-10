@@ -2,6 +2,7 @@ use std::{
     cmp::min,
     fs::File,
     io::{BufRead, BufReader},
+    time::{Duration, Instant},
 };
 
 use termbox_rs::{Attribute, Event, Key, Termbox};
@@ -27,6 +28,8 @@ pub struct Editor {
     copy_buf: Vec<char>,
     mode: Mode,
     modified: bool,
+    last_ch: char,
+    last_ch_time: Instant,
 }
 
 #[derive(Default)]
@@ -47,6 +50,10 @@ enum Mode {
 }
 
 impl Editor {
+    // bounds how long a leading key of a two-key chord (e.g. "gg")
+    // stays pending beofre it's treated as a fresh, unrelated keypress.
+    const CHORD_TIMEOUT: Duration = Duration::from_millis(500);
+
     pub fn new(tb: Termbox) -> Self {
         let (width, height) = tb.size();
         Self {
@@ -65,6 +72,8 @@ impl Editor {
             source_file: String::new(),
             mode: Mode::default(),
             modified: false,
+            last_ch: '\0',
+            last_ch_time: Instant::now(),
         }
     }
 
@@ -209,9 +218,18 @@ impl Editor {
     }
 
     pub fn process_key_press(&mut self, key: Key) {
-        if key.ch().is_some() && key.ch() != Some('\0') {
+        // TODO: Handle this unwrap better!
+        let ch = key.ch().unwrap();
+        if ch != '\0' {
             // char is not null
-            if let Some(ch) = key.ch() {
+            if ch == 'g'
+                && self.last_ch == 'g'
+                && self.last_ch_time.elapsed() < Editor::CHORD_TIMEOUT
+            {
+                // second 'g' of "gg" arrived in time - jump to the top
+                self.go_to_top();
+                self.last_ch = '\0';
+            } else {
                 match ch {
                     'h' => self.left(),
                     'j' => self.down(),
@@ -219,13 +237,16 @@ impl Editor {
                     'l' => self.right(),
                     'u' => self.page_up(),
                     'd' => self.page_down(),
+                    'g' => self.last_ch_time = Instant::now(),
                     _ => println!("Unhandled character: {:?}", key),
                 }
-            } else {
-                eprintln!("No character received?")
+                self.last_ch = ch;
             }
         } else {
-            let line_len = self.text_buf.get(self.current_row).unwrap_or(0).len();
+            self.last_ch = '\0';
+
+            // TODO: Handle this unwrap better!
+            let line_len = self.text_buf.get(self.current_row).unwrap().len();
 
             match key {
                 Key::ArrowUp => {
@@ -257,6 +278,11 @@ impl Editor {
                 }
             }
         }
+    }
+
+    fn go_to_top(&mut self) {
+        self.current_row = 0;
+        self.current_col = 0;
     }
 
     fn clamp_cursor(&mut self) {
