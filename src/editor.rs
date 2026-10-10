@@ -238,6 +238,7 @@ impl Editor {
                     'u' => self.page_up(),
                     'd' => self.page_down(),
                     'g' => self.last_ch_time = Instant::now(),
+                    'G' => self.go_to_bottom(),
                     _ => println!("Unhandled character: {:?}", key),
                 }
                 self.last_ch = ch;
@@ -282,6 +283,11 @@ impl Editor {
 
     fn go_to_top(&mut self) {
         self.current_row = 0;
+        self.current_col = 0;
+    }
+
+    fn go_to_bottom(&mut self) {
+        self.current_row = self.text_buf.len() - 1;
         self.current_col = 0;
     }
 
