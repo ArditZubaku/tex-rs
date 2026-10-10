@@ -220,6 +220,9 @@ impl Editor {
     pub fn process_key_press(&mut self, key: Key) {
         // TODO: Handle this unwrap better!
         let ch = key.ch().unwrap();
+        // TODO: Handle this unwrap better!
+        let line_len = self.text_buf.get(self.current_row).unwrap().len();
+
         if ch != '\0' {
             // char is not null
             if ch == 'g'
@@ -240,15 +243,13 @@ impl Editor {
                     'g' => self.last_ch_time = Instant::now(),
                     'G' => self.go_to_bottom(),
                     'I' => self.current_col = 0,
+                    'A' => self.current_col = line_len,
                     _ => println!("Unhandled character: {:?}", key),
                 }
                 self.last_ch = ch;
             }
         } else {
             self.last_ch = '\0';
-
-            // TODO: Handle this unwrap better!
-            let line_len = self.text_buf.get(self.current_row).unwrap().len();
 
             match key {
                 Key::ArrowUp => {
