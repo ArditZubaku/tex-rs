@@ -1,3 +1,5 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::{
     cmp::min,
     fs::File,
@@ -7,6 +9,8 @@ use std::{
 
 use termbox_rs::{Attribute, Event, Key, Termbox};
 use unicode_width::UnicodeWidthChar;
+
+use crate::log_debug;
 
 #[derive(Debug)]
 pub struct Editor {
@@ -221,14 +225,11 @@ impl Editor {
         // TODO: Handle this unwrap better!
         let ch = key.ch().unwrap();
         // TODO: Handle this unwrap better!
-        let line_len = self.text_buf.get(self.current_row).unwrap().len();
+        let line_len = self.text_buf[self.current_row].len();
 
         if ch != '\0' {
             // char is not null
-            if ch == 'g'
-                && self.last_ch == 'g'
-                && self.last_ch_time.elapsed() < Editor::CHORD_TIMEOUT
-            {
+            if self.second_g_pressed(ch) {
                 // second 'g' of "gg" arrived in time - jump to the top
                 self.go_to_top();
                 self.last_ch = '\0';
@@ -241,6 +242,7 @@ impl Editor {
                     'u' => self.page_up(),
                     'd' => self.page_down(),
                     'g' => self.last_ch_time = Instant::now(),
+                    'w' => self.next_word(),
                     'G' => self.go_to_bottom(),
                     'I' => self.current_col = 0,
                     'A' => self.current_col = line_len,
@@ -281,6 +283,34 @@ impl Editor {
                 }
             }
         }
+    }
+
+    fn next_word(&mut self) {
+        let (mut row, mut col) = (self.current_row, self.current_col);
+
+        // skip non-spaces
+        while !self.is_space(self.char_at(row, col)) {
+            let (next_row, next_col) = self.step_forward(row, col);
+
+            if next_row == row && next_col == col {
+                break;
+            }
+
+            (row, col) = (next_row, next_col);
+        }
+
+        // skip spaces
+        while self.is_space(self.char_at(row, col)) {
+            let (next_row, next_col) = self.step_forward(row, col);
+
+            if next_row == row && next_col == col {
+                break;
+            }
+
+            (row, col) = (next_row, next_col);
+        }
+
+        (self.current_row, self.current_col) = (row, col);
     }
 
     fn go_to_top(&mut self) {
@@ -363,6 +393,10 @@ impl Editor {
         self.clamp_cursor();
     }
 
+    fn second_g_pressed(&self, ch: char) -> bool {
+        ch == 'g' && self.last_ch == 'g' && self.last_ch_time.elapsed() < Editor::CHORD_TIMEOUT
+    }
+
     fn print_message(
         &mut self,
         mut col: usize,
@@ -375,5 +409,32 @@ impl Editor {
             self.tb.set_cell(col, row, ch, fg, bg);
             col += ch.width().unwrap_or(0);
         }
+    }
+
+    #[inline]
+    fn is_space(&self, ch: char) -> bool {
+        ch == ' ' || ch == '\t'
+    }
+
+    /// Treats past-end-of-line as whitespace, so word motions see line breaks
+    /// as word boundaries without special-casing them separately
+    fn char_at(&self, row: usize, col: usize) -> char {
+        if col >= self.text_buf[row].len() {
+            return ' ';
+        }
+
+        self.text_buf[row][col]
+    }
+
+    fn step_forward(&self, row: usize, col: usize) -> (usize, usize) {
+        if col < self.text_buf[row].len() {
+            return (row, col + 1);
+        }
+
+        if row < self.text_buf.len() - 1 {
+            return (row + 1, 0);
+        }
+
+        (row, col)
     }
 }
