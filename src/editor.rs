@@ -209,7 +209,7 @@ impl Editor {
     }
 
     pub fn process_key_press(&mut self, key: Key) {
-        if key.ch() != Some('\0') {
+        if key.ch().is_some() && key.ch() != Some('\0') {
             // char is not null
             if let Some(ch) = key.ch() {
                 match ch {
@@ -225,6 +225,8 @@ impl Editor {
                 eprintln!("No character received?")
             }
         } else {
+            let line_len = self.text_buf.get(self.current_row).unwrap_or(0).len();
+
             match key {
                 Key::ArrowUp => {
                     self.up();
@@ -237,6 +239,18 @@ impl Editor {
                 }
                 Key::ArrowRight => {
                     self.right();
+                }
+                Key::Home => {
+                    self.current_col = 0;
+                }
+                Key::End => {
+                    self.current_col = line_len;
+                }
+                Key::PgUp => {
+                    self.page_up();
+                }
+                Key::PgDn => {
+                    self.page_down();
                 }
                 _ => {
                     println!("You are not handling this key - {:?}", key)
