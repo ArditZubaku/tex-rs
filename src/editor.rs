@@ -239,6 +239,7 @@ impl Editor {
                     'd' => self.page_down(),
                     'g' => self.last_ch_time = Instant::now(),
                     'G' => self.go_to_bottom(),
+                    'I' => self.current_col = 0,
                     _ => println!("Unhandled character: {:?}", key),
                 }
                 self.last_ch = ch;
