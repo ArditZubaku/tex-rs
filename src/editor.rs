@@ -255,6 +255,7 @@ impl Editor {
                     'g' => self.last_ch_time = Instant::now(),
                     'w' => self.next_word(),
                     'b' => self.prev_word(),
+                    'e' => self.end_of_word(),
                     'G' => self.go_to_bottom(),
                     'I' => self.current_col = 0,
                     'A' => self.current_col = line_len,
@@ -295,6 +296,41 @@ impl Editor {
                 }
             }
         }
+    }
+
+    fn end_of_word(&mut self) {
+        let (mut row, mut col) = (self.current_row, self.current_col);
+
+        // always advance at least one position, so pressing 'e' at the end of a word
+        // moves to the end of the next one instead of staying put
+        (row, col) = self.step_forward(row, col);
+
+        // skip spaces
+        while self.class_of(self.char_at(row, col)) == CharClass::Space {
+            let (next_row, next_col) = self.step_forward(row, col);
+
+            if next_row == row && next_col == col {
+                break;
+            }
+
+            (row, col) = (next_row, next_col);
+        }
+
+        let word_class = self.class_of(self.char_at(row, col));
+
+        loop {
+            let (next_row, next_col) = self.step_forward(row, col);
+
+            if (next_row == row && next_col == col)
+                || self.class_of(self.char_at(next_row, next_col)) != word_class
+            {
+                break;
+            }
+
+            (row, col) = (next_row, next_col);
+        }
+
+        (self.current_row, self.current_col) = (row, col);
     }
 
     fn prev_word(&mut self) {
