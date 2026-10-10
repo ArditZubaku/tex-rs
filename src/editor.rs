@@ -52,6 +52,18 @@ enum Mode {
     Visual,
 }
 
+// TODO: Do I need all of these?
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// Mirrors Vim's word/punct/space split: a run of same-class
+/// characters is one "word" for w/b purposes, so e.g. `"foo` is two words
+/// (the quote, then foo) rather than one.
+enum CharClass {
+    #[default]
+    Space,
+    Word,
+    Punct,
+}
+
 impl Editor {
     // bounds how long a leading key of a two-key chord (e.g. "gg")
     // stays pending beofre it's treated as a fresh, unrelated keypress.
@@ -293,7 +305,7 @@ impl Editor {
         (row, col) = self.step_backward(row, col);
 
         // skip spaces
-        while self.is_space(self.char_at(row, col)) {
+        while self.class_of(self.char_at(row, col)) == CharClass::Space {
             let (next_row, next_col) = self.step_backward(row, col);
 
             if next_row == row && next_col == col {
@@ -303,10 +315,13 @@ impl Editor {
             (row, col) = (next_row, next_col);
         }
 
+        let word_class = self.class_of(self.char_at(row, col));
+
         loop {
             let (prev_row, prev_col) = self.step_backward(row, col);
+
             if (prev_row == row && prev_col == col)
-                || self.is_space(self.char_at(prev_row, prev_col))
+                || self.class_of(self.char_at(prev_row, prev_col)) != word_class
             {
                 break;
             }
@@ -319,20 +334,23 @@ impl Editor {
 
     fn next_word(&mut self) {
         let (mut row, mut col) = (self.current_row, self.current_col);
+        let start_class = self.class_of(self.char_at(row, col));
 
         // skip non-spaces
-        while !self.is_space(self.char_at(row, col)) {
-            let (next_row, next_col) = self.step_forward(row, col);
+        if start_class != CharClass::Space {
+            while self.class_of(self.char_at(row, col)) == start_class {
+                let (next_row, next_col) = self.step_forward(row, col);
 
-            if next_row == row && next_col == col {
-                break;
+                if next_row == row && next_col == col {
+                    break;
+                }
+
+                (row, col) = (next_row, next_col);
             }
-
-            (row, col) = (next_row, next_col);
         }
 
         // skip spaces
-        while self.is_space(self.char_at(row, col)) {
+        while self.class_of(self.char_at(row, col)) == CharClass::Space {
             let (next_row, next_col) = self.step_forward(row, col);
 
             if next_row == row && next_col == col {
@@ -448,6 +466,12 @@ impl Editor {
         ch == ' ' || ch == '\t'
     }
 
+    /// Checks whether a character is part of a word
+    #[inline]
+    fn is_word_char(&self, ch: char) -> bool {
+        ch == '_' || ch.is_ascii_alphabetic() || ch.is_ascii_digit()
+    }
+
     /// Treats past-end-of-line as whitespace, so word motions see line breaks
     /// as word boundaries without special-casing them separately
     fn char_at(&self, row: usize, col: usize) -> char {
@@ -480,5 +504,15 @@ impl Editor {
         }
 
         (row, col)
+    }
+
+    fn class_of(&self, ch: char) -> CharClass {
+        if self.is_space(ch) {
+            CharClass::Space
+        } else if self.is_word_char(ch) {
+            CharClass::Word
+        } else {
+            CharClass::Punct
+        }
     }
 }
