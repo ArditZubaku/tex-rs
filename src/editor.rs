@@ -7,6 +7,7 @@ use std::{
 use termbox_rs::{Attribute, Event, Key, Termbox};
 use unicode_width::UnicodeWidthChar;
 
+#[derive(Debug)]
 pub struct Editor {
     pub tb: Termbox,
     // TODO: Maybe I can do a better job and use something smaller than usize?
@@ -216,16 +217,9 @@ impl Editor {
                     'j' => self.down(),
                     'k' => self.up(),
                     'l' => self.right(),
-                    // idk how many lines VIM goes up but this should be good
-                    'u' => self.current_row = self.current_row.saturating_sub(15),
-                    'd' => {
-                        if self.current_row < self.text_buf.len() - 1 {
-                            self.current_row += 15;
-                        }
-                    }
-                    _ => {
-                        println!("Unhandled character: {:?}", key);
-                    }
+                    'u' => self.page_up(),
+                    'd' => self.page_down(),
+                    _ => println!("Unhandled character: {:?}", key),
                 }
             } else {
                 eprintln!("No character received?")
@@ -292,6 +286,33 @@ impl Editor {
             self.current_col = 0;
             self.current_row += 1;
         }
+    }
+
+    fn page_up(&mut self) {
+        let jump_line = self.current_row - self.rows / 4;
+
+        if jump_line > 0 {
+            self.current_row = self.current_row.saturating_sub(self.rows / 4);
+        } else {
+            self.current_row = 0;
+        }
+
+        self.clamp_cursor();
+    }
+
+    fn page_down(&mut self) {
+        let jump_line = self.current_row + self.rows / 4;
+
+        if jump_line < self.text_buf.len() - 1 {
+            // TODO: this might need the saturating_add
+            // but I'm willing to live with this because I don't think
+            // I'll ever open such a file with lines > usize::MAX
+            self.current_row += self.rows / 4;
+        } else {
+            self.current_row = self.text_buf.len() - 1;
+        }
+
+        self.clamp_cursor();
     }
 
     fn print_message(
