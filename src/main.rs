@@ -1,3 +1,4 @@
+mod debug;
 mod editor;
 
 use std::{env, process};
