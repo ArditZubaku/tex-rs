@@ -1,5 +1,6 @@
-use std::fs::OpenOptions;
-use std::io::Write;
+// use std::fs::OpenOptions;
+// use std::io::Write;
+// use crate::log_debug;
 use std::{
     cmp::min,
     fs::File,
@@ -9,8 +10,6 @@ use std::{
 
 use termbox_rs::{Attribute, Event, Key, Termbox};
 use unicode_width::UnicodeWidthChar;
-
-use crate::log_debug;
 
 #[derive(Debug)]
 pub struct Editor {
@@ -243,6 +242,7 @@ impl Editor {
                     'd' => self.page_down(),
                     'g' => self.last_ch_time = Instant::now(),
                     'w' => self.next_word(),
+                    'b' => self.prev_word(),
                     'G' => self.go_to_bottom(),
                     'I' => self.current_col = 0,
                     'A' => self.current_col = line_len,
@@ -283,6 +283,38 @@ impl Editor {
                 }
             }
         }
+    }
+
+    fn prev_word(&mut self) {
+        let (mut row, mut col) = (self.current_row, self.current_col);
+
+        // step off the current word first, so pressing 'b' from a word-start
+        // lands on the previous word instead of itself
+        (row, col) = self.step_backward(row, col);
+
+        // skip spaces
+        while self.is_space(self.char_at(row, col)) {
+            let (next_row, next_col) = self.step_backward(row, col);
+
+            if next_row == row && next_col == col {
+                break;
+            }
+
+            (row, col) = (next_row, next_col);
+        }
+
+        loop {
+            let (prev_row, prev_col) = self.step_backward(row, col);
+            if (prev_row == row && prev_col == col)
+                || self.is_space(self.char_at(prev_row, prev_col))
+            {
+                break;
+            }
+
+            (row, col) = (prev_row, prev_col);
+        }
+
+        (self.current_row, self.current_col) = (row, col);
     }
 
     fn next_word(&mut self) {
@@ -433,6 +465,18 @@ impl Editor {
 
         if row < self.text_buf.len() - 1 {
             return (row + 1, 0);
+        }
+
+        (row, col)
+    }
+
+    fn step_backward(&self, row: usize, col: usize) -> (usize, usize) {
+        if col > 0 {
+            return (row, col - 1);
+        }
+
+        if row > 0 {
+            return (row - 1, self.text_buf[row - 1].len());
         }
 
         (row, col)
